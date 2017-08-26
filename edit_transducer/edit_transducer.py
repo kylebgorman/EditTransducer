@@ -81,12 +81,16 @@ class EditTransducer(object):
     """
     # Left factor.
     match = union(*alphabet).optimize(True)
-    insert = transducer("", "[{}]".format(self.INSERT), weight=insert_cost / 2.)
+    # Left factor; note that we divide the edit costs by two because they also
+    # will be incurred when traversing the right factor.
+    insert = transducer("", "[{}]".format(self.INSERT), weight=insert_cost / 2)
     delete = transducer(match, "[{}]".format(self.DELETE),
-                        weight=delete_cost / 2.).optimize(True)
+                        weight=delete_cost / 2).optimize(True)
     self._left_factor = union(match, insert, delete).optimize(True)
     self._left_factor.closure().optimize(True)
-    # Right factor.
+    # Right factor; this is constructed by inverting the left factor (i.e.,
+    # swapping the input and output labels), then swapping the insert and delete
+    # labels on what is now the input side.
     self._right_factor = invert(self._left_factor)
     syms = self._right_factor.input_symbols()
     insert_label = syms.find(self.INSERT)
@@ -131,7 +135,7 @@ class LevenshteinDistance(EditTransducer):
   def distance(self, iset, oset):
     """Computes minimum distance.
 
-    This method comptues, for a pair of input/output strings or acceptors, the
+    This method computes, for a pair of input/output strings or acceptors, the
     minimum edit distance according to the underlying edit transducer.
 
     Args:
