@@ -23,7 +23,7 @@ this model to support substitutions, however.
 
 from __future__ import division
 
-from pynini import acceptor, string_map, transducer, NO_STATE_ID
+from pynini import string_map, transducer, NO_STATE_ID
 from pynini import compose, invert, shortestdistance, shortestpath, union
 
 
