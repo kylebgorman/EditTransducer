@@ -18,7 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from .edit_transducer import Error
+from .edit_transducer import LatticeError
 from .edit_transducer import EditTransducer
 from .edit_transducer import LevenshteinDistance
 from .edit_transducer import LevenshteinAutomaton

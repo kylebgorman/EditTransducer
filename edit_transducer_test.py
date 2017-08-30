@@ -39,27 +39,31 @@ class LevenshteinAutomatonTest(unittest.TestCase):
                       "limburger")
     cls.automaton = edit_transducer.LevenshteinAutomaton(
         string.ascii_lowercase, cheese_lexicon)
+    cls.distance = edit_transducer.LevenshteinDistance(string.ascii_lowercase)
 
   def query_and_distance(self, query, expected_closest, expected_distance):
     closest = self.automaton.closest_match(query)
     self.assertEqual(expected_closest, closest)
-    distance = self.automaton.distance(query, closest)
+    distance = self.distance.distance(query, closest)
     self.assertEqual(expected_distance, distance)
 
   def testMatch(self):
     self.query_and_distance("stilton", "stilton", 0.0)
 
   def testInsertion(self):
-    self.query_and_distance("cheeshire", "cheshire", 1.0)
-
-  def testDeletion(self):
     self.query_and_distance("mozarela", "mozzarella", 2.0)
 
+  def testDeletion(self):
+    self.query_and_distance("emmenthal", "emmental", 1.0)
+
+  def testSubstitution(self):
+    self.query_and_distance("bourzin", "boursin", 1.0)
+
   def testMixedEdit(self):
-    self.query_and_distance("rockford", "roquefort", 7.0)
+    self.query_and_distance("rockford", "roquefort", 4.0)
 
   def testOutOfAlphabetQueryRaisesError(self):
-    with self.assertRaises(edit_transducer.Error):
+    with self.assertRaises(edit_transducer.LatticeError):
       unused_closest = self.automaton.closest_match("Gruyère")
 
 

@@ -34,71 +34,81 @@ Here, we provide three concrete classes:
 * LevenshteinAutomaton(LevenshteinDistance): Uses the edit transducer and an input
   vocabulary to construct a right-factored lexicon, from which one can compute
   the closest matches.
-
-One current limitation is that the library only supports "indel" (insertion
-and deletion) operations, so apparent substitutions are modeled as an insertion
-followed by a deletion (or vis versa). It should be straightforward to extend
-this model to support substitutions, however.
 """
 
 from __future__ import division
 
-from pynini import string_map, transducer, NO_STATE_ID
-from pynini import compose, invert, shortestdistance, shortestpath, union
+from pynini import compose
+from pynini import invert
+from pynini import NO_STATE_ID
+from pynini import shortestdistance
+from pynini import shortestpath
+from pynini import string_map
+from pynini import transducer
+from pynini import union
 
 
-DEFAULT_INSERT_COST = 1.
-DEFAULT_DELETE_COST = 1.
+DEFAULT_INSERT_COST = 1
+DEFAULT_DELETE_COST = 1
+DEFAULT_SUBSTITUTE_COST = 1
 
 
-class Error(Exception):
-  """Generic error for this module."""
+class LatticeError(Exception):
   pass
 
 
 class EditTransducer(object):
-  """Factored edit transducer supporting indel operations.
-
-  The two-factor construction used here is based on the "Edit Distance"
-  OpenFst exercise (http://www.openfst.org/twiki/bin/view/FST/FstExamples),
-  which is much faster than the naïve (i.e., unfactored) construction.
+  """Factored edit transducer.
+  
+  This class stores the two factors of an finite-alphabet edit transducer and
+  supports insertion, deletion, and substitution operations with user-specified
+  costs.
+  
+  Note that the cost of substitution must be less than the cost of insertion
+  plus the cost of deletion or no optimal path will include substitution.
   """
 
   # Reserved labels for edit operations.
   DELETE = "<delete>"
   INSERT = "<insert>"
+  SUBSTITUTE = "<substitute>"
 
   def __init__(self,
                alphabet,
                insert_cost=DEFAULT_INSERT_COST,
-               delete_cost=DEFAULT_DELETE_COST):
+               delete_cost=DEFAULT_DELETE_COST,
+               substitute_cost=DEFAULT_SUBSTITUTE_COST):
     """Constructor.
 
     Args:
       alphabet: edit alphabet (an iterable of strings).
       insert_cost: the cost for the insertion operation.
       delete_cost: the cost for the deletion operation.
+      substitute_cost: the cost for the substitution operation.
     """
-    # Left factor.
-    match = union(*alphabet).optimize(True)
     # Left factor; note that we divide the edit costs by two because they also
     # will be incurred when traversing the right factor.
-    insert = transducer("", "[{}]".format(self.INSERT), weight=insert_cost / 2)
-    delete = transducer(match, "[{}]".format(self.DELETE),
-                        weight=delete_cost / 2).optimize(True)
-    self._left_factor = union(match, insert, delete).optimize(True)
-    self._left_factor.closure().optimize(True)
+    match = union(*alphabet).optimize(True)
+    i_insert = transducer("", "[{}]".format(self.INSERT),
+                          weight=insert_cost / 2).optimize(True)
+    i_delete = transducer(match, "[{}]".format(self.DELETE),
+                          weight=delete_cost / 2).optimize(True)
+    i_substitute = transducer(match, "[{}]".format(self.SUBSTITUTE),
+                              weight=substitute_cost / 2).optimize(True)
+    i_ops = union(match, i_insert, i_delete, i_substitute).optimize(True)
     # Right factor; this is constructed by inverting the left factor (i.e.,
     # swapping the input and output labels), then swapping the insert and delete
     # labels on what is now the input side.
-    self._right_factor = invert(self._left_factor)
-    syms = self._right_factor.input_symbols()
+    o_ops = invert(i_ops)
+    syms = o_ops.input_symbols()
     insert_label = syms.find(self.INSERT)
     delete_label = syms.find(self.DELETE)
-    self._right_factor.relabel_pairs(ipairs=((insert_label, delete_label),
-                                             (delete_label, insert_label)))
-    self._right_factor.closure().optimize(True)
-
+    o_ops.relabel_pairs(ipairs=((insert_label, delete_label),
+                                (delete_label, insert_label)))
+    # Computes the closure for both sets of ops.
+    self._e_i = i_ops.closure().optimize(True)
+    self._e_o = o_ops.closure().optimize(True)
+  
   @staticmethod
   def check_wellformed_lattice(lattice):
     """Raises an error if the lattice is empty.
@@ -107,10 +117,10 @@ class EditTransducer(object):
       lattice: A lattice FST.
 
     Raises:
-      Error: Lattice is empty.
+      LatticeError: Lattice is empty.
     """
     if lattice.start() == NO_STATE_ID:
-      raise Error("Lattice is empty")
+      raise LatticeError("Lattice is empty")
 
   def _create_lattice(self, iset, oset):
     """Creates edit lattice for a pair of input/output strings or acceptors.
@@ -122,9 +132,9 @@ class EditTransducer(object):
     Returns:
       A lattice FST.
     """
-    left = compose(iset, self._left_factor)
-    right = compose(self._right_factor, oset)
-    lattice = compose(left, right)
+    l_i = compose(iset, self._e_i)
+    l_o = compose(self._e_o, oset)
+    lattice = compose(l_i, l_o)
     EditTransducer.check_wellformed_lattice(lattice)
     return lattice
 
@@ -158,14 +168,16 @@ class LevenshteinAutomaton(LevenshteinDistance):
                alphabet,
                lexicon,
                insert_cost=DEFAULT_INSERT_COST,
-               delete_cost=DEFAULT_DELETE_COST):
+               delete_cost=DEFAULT_DELETE_COST,
+               substitute_cost=DEFAULT_SUBSTITUTE_COST):
     super(LevenshteinAutomaton, self).__init__(alphabet, insert_cost,
-                                               delete_cost)
-    compiled_lexicon = string_map(lexicon).optimize(True)
-    self._factored_lexicon = compose(self._right_factor, compiled_lexicon)
-    self._factored_lexicon.optimize(True)
+                                               delete_cost, substitute_cost)
+    # Compiles lexicon and composes the right factor with it.
+    compiled_lexicon = string_map(lexicon)
+    self._l_o = compose(self._e_o, compiled_lexicon)
+    self._l_o.optimize(True)
 
-  def _make_lattice(self, query):
+  def _create_levenshtein_automaton_lattice(self, query):
     """Constructs a lattice for a query string.
 
     Args:
@@ -174,8 +186,8 @@ class LevenshteinAutomaton(LevenshteinDistance):
     Returns:
       A lattice FST.
     """
-    left = compose(query, self._left_factor)
-    lattice = compose(left, self._factored_lexicon)
+    l_i = compose(query, self._e_i)
+    lattice = compose(l_i, self._l_o)
     EditTransducer.check_wellformed_lattice(lattice)
     return lattice
 
@@ -195,9 +207,9 @@ class LevenshteinAutomaton(LevenshteinDistance):
     Returns:
       The closest string in the lexicon.
     """
-    lattice = self._make_lattice(query)
-    # For implementational reasons, the shortest path (when k = 1) is in
-    # reverse state order, so we perform a topological sort ahead of time.
+    lattice = self._create_levenshtein_automaton_lattice(query)
+    # For implementation reasons, the shortest path (when k = 1) is in reverse
+    # state order, so we perform a topological sort ahead of time.
     return shortestpath(lattice).topsort().stringify()
 
   def closest_matches(self, query):
@@ -213,9 +225,9 @@ class LevenshteinAutomaton(LevenshteinDistance):
       query: input string or acceptor.
 
     Returns:
-      A tuple of the closest strings in the lexicon.
+      An iterator of the closest strings in the lexicon.
     """
-    lattice = self._make_lattice(query)
+    lattice = self._create_levenshtein_automaton_lattice(query)
     # Prunes all paths whose weights are worse than the best path.
-    lattice.prune(weight=0.).project(True).optimize(True)
-    return tuple(lattice.paths().iter_ostrings())
+    lattice.prune(weight=0).project(True).optimize(True)
+    return lattice.paths().iter_ostrings()
