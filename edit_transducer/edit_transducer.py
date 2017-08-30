@@ -5,7 +5,7 @@
 # copy of this software and associated documentation files (the "Software"),
 # to deal in the Software without restriction, including without limitation the
 # rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
-# sell copies of the Software, and to permit persons to whom the Software is 
+# sell copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
 #
 # The above copyright notice and this permission notice shall be included in
@@ -59,11 +59,11 @@ class LatticeError(Exception):
 
 class EditTransducer(object):
   """Factored edit transducer.
-  
+
   This class stores the two factors of an finite-alphabet edit transducer and
   supports insertion, deletion, and substitution operations with user-specified
   costs.
-  
+
   Note that the cost of substitution must be less than the cost of insertion
   plus the cost of deletion or no optimal path will include substitution.
   """
@@ -108,7 +108,7 @@ class EditTransducer(object):
     # Computes the closure for both sets of ops.
     self._e_i = i_ops.closure().optimize(True)
     self._e_o = o_ops.closure().optimize(True)
-  
+ 
   @staticmethod
   def check_wellformed_lattice(lattice):
     """Raises an error if the lattice is empty.

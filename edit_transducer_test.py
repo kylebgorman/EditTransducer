@@ -47,6 +47,8 @@ class LevenshteinAutomatonTest(unittest.TestCase):
     distance = self.distance.distance(query, closest)
     self.assertEqual(expected_distance, distance)
 
+  ## Tests using query_and_distance helper.
+
   def testMatch(self):
     self.query_and_distance("stilton", "stilton", 0.0)
 
@@ -61,6 +63,16 @@ class LevenshteinAutomatonTest(unittest.TestCase):
 
   def testMixedEdit(self):
     self.query_and_distance("rockford", "roquefort", 4.0)
+
+  ## Other tests
+
+  def testClosestMatchFindsExactMatch(self):
+    res = self.automaton.closest_matches("cheddar")
+    self.assertListEqual(["cheddar"], list(res))
+
+  def testClosestMatchReturnsMultiple(self):
+    res = self.automaton.closest_matches("cheese")
+    self.assertListEqual(["cheddar", "cheshire"], list(res))
 
   def testOutOfAlphabetQueryRaisesError(self):
     with self.assertRaises(edit_transducer.LatticeError):
