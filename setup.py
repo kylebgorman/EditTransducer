@@ -21,7 +21,7 @@
 from setuptools import setup
 
 setup(name="EditTransducer",
-      version="0.1",
+      version="0.2",
       author="Kyle Gorman",
       author_email="kylebgorman@gmail.com",
       packages=["edit_transducer"],

@@ -1,4 +1,3 @@
-# Encoding: UTF-8
 # Copyright (C) 2017 Kyle Gorman
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
@@ -230,4 +229,4 @@ class LevenshteinAutomaton(LevenshteinDistance):
     lattice = self._create_levenshtein_automaton_lattice(query)
     # Prunes all paths whose weights are worse than the best path.
     lattice.prune(weight=0).project(True).optimize(True)
-    return lattice.paths().iter_ostrings()
+    return lattice.paths().ostrings()

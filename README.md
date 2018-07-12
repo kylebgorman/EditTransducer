@@ -8,8 +8,8 @@ straightforward extensions:
 [Levenshtein automata](https://en.wikipedia.org/wiki/Levenshtein_automaton).
 
 The library has only one dependency outside of the standard library:
-[Pynini](http://pynini.opengrm.org). Unfortunately, as of writing this is not
-available from PyPi and thus has to be installed manually.
+[Pynini](http://pynini.opengrm.org) 2.0 or better. Unfortunately, as of writing
+this is not available from PyPi and thus has to be installed manually.
 
 For usage information, see the in-module docstrings and the unit tests.
 
