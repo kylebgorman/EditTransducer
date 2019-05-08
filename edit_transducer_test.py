@@ -74,7 +74,7 @@ class LevenshteinAutomatonTest(unittest.TestCase):
     self.assertListEqual(["cheddar", "cheshire"], list(res))
 
   def testOutOfAlphabetQueryRaisesError(self):
-    with self.assertRaises(edit_transducer.LatticeError):
+    with self.assertRaises(edit_transducer.Error):
       unused_closest = self.automaton.closest_match("Gruyère")
 
 

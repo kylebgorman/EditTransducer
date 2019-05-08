@@ -52,7 +52,9 @@ DEFAULT_DELETE_COST = 1
 DEFAULT_SUBSTITUTE_COST = 1
 
 
-class LatticeError(Exception):
+class Error(Exception):
+  """Errors specific to this module."""
+
   pass
 
 
@@ -107,7 +109,7 @@ class EditTransducer(object):
     # Computes the closure for both sets of ops.
     self._e_i = i_ops.closure().optimize(True)
     self._e_o = o_ops.closure().optimize(True)
- 
+
   @staticmethod
   def check_wellformed_lattice(lattice):
     """Raises an error if the lattice is empty.
@@ -116,10 +118,10 @@ class EditTransducer(object):
       lattice: A lattice FST.
 
     Raises:
-      LatticeError: Lattice is empty.
+      Error: Lattice is empty.
     """
     if lattice.start() == NO_STATE_ID:
-      raise LatticeError("Lattice is empty")
+      raise Error("Lattice is empty")
 
   def _create_lattice(self, iset, oset):
     """Creates edit lattice for a pair of input/output strings or acceptors.
@@ -131,9 +133,7 @@ class EditTransducer(object):
     Returns:
       A lattice FST.
     """
-    l_i = compose(iset, self._e_i)
-    l_o = compose(self._e_o, oset)
-    lattice = compose(l_i, l_o)
+    lattice = (iset @ self._e_i) @ (self._e_o @ oset)
     EditTransducer.check_wellformed_lattice(lattice)
     return lattice
 
@@ -157,7 +157,7 @@ class LevenshteinDistance(EditTransducer):
     lattice = self._create_lattice(iset, oset)
     # The shortest cost from all final states to the start state is
     # equivalent to the cost of the shortest path.
-    return float(shortestdistance(lattice, reverse=True)[0])
+    return float(shortestdistance(lattice, reverse=True)[lattice.start()])
 
 
 class LevenshteinAutomaton(LevenshteinDistance):
@@ -173,7 +173,7 @@ class LevenshteinAutomaton(LevenshteinDistance):
                                                delete_cost, substitute_cost)
     # Compiles lexicon and composes the right factor with it.
     compiled_lexicon = string_map(lexicon)
-    self._l_o = compose(self._e_o, compiled_lexicon)
+    self._l_o = self._e_o @ compiled_lexicon
     self._l_o.optimize(True)
 
   def _create_levenshtein_automaton_lattice(self, query):
@@ -185,8 +185,7 @@ class LevenshteinAutomaton(LevenshteinDistance):
     Returns:
       A lattice FST.
     """
-    l_i = compose(query, self._e_i)
-    lattice = compose(l_i, self._l_o)
+    lattice = (query @ self._e_i) @ self._l_o
     EditTransducer.check_wellformed_lattice(lattice)
     return lattice
 

@@ -20,8 +20,9 @@
 
 from setuptools import setup
 
+
 setup(name="EditTransducer",
-      version="0.2",
+      version="0.3",
       author="Kyle Gorman",
       author_email="kylebgorman@gmail.com",
       packages=["edit_transducer"],
